@@ -36,7 +36,7 @@ elements = {
 
 # steering card
 s  = 'projectile g  \n' # incident photon
-s += 'energy eps.txt\n' # file with incident photon energies
+s += 'energy %s/eps.txt\n' # file with incident photon energies
 s += 'element %s    \n' # target element
 s += 'mass %i       \n' # target mass number
 s += 'strength 1    \n' # GDR parameterization (E1 strength function): 1 = Kopecky-Uhl / generalized Lorentzian
@@ -45,15 +45,17 @@ s += 'channels y    \n' # write exclusive cross-sections output files
 s += 'maxchannel 8  \n' # maximum number of emitted particles per for which output files are written
 s += 'isomer 1.e38  \n' # don't consider isomers separately
 s += 'fileresidual n\n' # don't write residual production output files
+s += 'outgamdis y   \n' # write photon emission output files 
 
 
 # incident photon energies: 0.2 - 200 MeV in steps of dlogE = 0.01
 eps = logspace(log10(0.2), log10(200), 301)
 savetxt('eps.txt', eps, fmt='%.6g')
+path = os.getcwd()
 
 
 
-for (Z,N,A) in isotopes[:2]:
+for (Z,N,A) in isotopes[6:7]:
     print Z, N
     time.sleep(3)
 
@@ -66,7 +68,7 @@ for (Z,N,A) in isotopes[:2]:
     os.chdir(folder)
 
     f = open('input', 'w')
-    f.write(input_str % (elements[Z], A))
+    f.write(s % (path,elements[Z], A))
     f.close()
 
     os.system('talys < input > output')

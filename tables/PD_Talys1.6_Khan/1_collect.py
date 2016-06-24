@@ -15,10 +15,10 @@ def isBogus(Z, N, channel):
     if (dZ + dN) == (Z + N):
         print '    no nucleon left:', channel
         return True
-    if dZ > dZ:
+    if dZ > Z:
         print '    too many protons lost:', channel
         return True
-    if dN > dN:
+    if dN > N:
         print '    too many neutrons lost:', channel
         return True
     return False

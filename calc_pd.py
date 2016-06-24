@@ -22,7 +22,7 @@ xs1exc = array([iR.romb_pad_zero(x, 513) for x in d1exc['xs']])*1e-31
 
 
 # cross sections for A >= 12 (TALYS)
-ddir2 = 'tables/PD_Talys1.6_Khan/'
+ddir2 = 'tables/PD_gamma/'
 # ddir2 = 'tables/PD_Talys1.6_Geant4/'
 isotopes2 = genfromtxt(ddir2 + 'isotopes.txt')
 x = genfromtxt(ddir2+'eps.txt') * eV * 1e6  # [J]
@@ -31,9 +31,15 @@ d2sum = genfromtxt(ddir2+'xs_sum.txt',
     dtype=[('Z',int), ('N',int), ('xs','%if8'%n)])
 d2exc = genfromtxt(ddir2+'xs_thin.txt',
     dtype=[('Z',int), ('N',int), ('ch',int), ('xs','%if8'%n)])
+d2gamma = genfromtxt(ddir2+'xs_gamma_thin.txt',
+    dtype=[('Z',int), ('N',int), ('Zd',int), ('Nd',int), ('Egamma',double), ('xs','%if8'%n)])
+d2sum_daughter = genfromtxt(ddir2+'xs_sum_daughter.txt',
+    dtype=[('Z',int), ('N',int), ('Zd',int), ('Nd',int), ('xs','%if8'%n)])
 eps2 = iR.romb_pad_logspaced(x, 513)  # padding
 xs2sum = array([iR.romb_pad_zero(x, 513) for x in d2sum['xs']])*1e-31
 xs2exc = array([iR.romb_pad_zero(x, 513) for x in d2exc['xs']])*1e-31
+xs2gamma = array([iR.romb_pad_zero(x, 513) for x in d2gamma['xs']])*1e-31
+xs2sum_daughter = array([iR.romb_pad_zero(x, 513) for x in d2sum_daughter['xs']])*1e-31
 
 
 fields = [
@@ -52,6 +58,7 @@ for field in fields:
     # Calculate total interaction rate
     R1 = array([iR.invMFP_fast(eps1, x, gamma, field) for x in xs1sum])
     R2 = array([iR.invMFP_fast(eps2, x, gamma, field) for x in xs2sum])
+    R3 = array([iR.invMFP_fast(eps2, x, gamma, field) for x in xs2sum_daughter])
 
     # save
     fname = 'data/pd_%s.txt' % field.name
@@ -85,4 +92,23 @@ for field in fields:
         c_[d2exc['Z'], d2exc['N'], d2exc['ch'], B2]]
     fmt = '%i\t%i\t%06d' + '\t%g'*201
     hdr = 'Photo-disintegration with the %s\nZ, N, channel, branching ratio for log10(gamma) = 6-14 in 201 steps' % field.info
+    savetxt(fname, output, fmt=fmt, header=hdr)
+
+    # Calculate photon emission probabilities
+    # for A > 12
+    print "calc gamma stuff"
+    B3 = array([iR.invMFP_fast(eps2, x, gamma, field) for x in xs2gamma])
+    print "fertig"
+    PDchannel = transpose(array([d2sum_daughter['Z'],d2sum_daughter['N'],d2sum_daughter['Zd'],d2sum_daughter['Nd']]))
+    for i,(Z, N, Zd, Nd) in enumerate(PDchannel):
+        s = (d2gamma['Z'] == Z) * (d2gamma['N'] == N) * (d2gamma['Zd'] == Zd) * (d2gamma['Nd'] == Nd)
+        B3[s] /= R3[i]
+    B3[isnan(B3)] = 0 # set to 0 when total cross section is 0
+
+    # save
+    fname = 'data/pd_gamma_thin_%s.txt'%field.name
+    output = r_[
+        c_[d2gamma['Z'], d2gamma['N'], d2gamma['Zd'], d2gamma['Nd'], d2gamma['Egamma']*1e6, B3]]
+    fmt = '%i\t%i\t%i\t%i\t%.4f' + '\t%g'*201
+    hdr = 'Photo-disintegration with the %s\nZ, N, Z_daughter, N_daughter, Egamma [eV], emission probability for log10(gamma) = 6-14 in 201 steps' % field.info
     savetxt(fname, output, fmt=fmt, header=hdr)
