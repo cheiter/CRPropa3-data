@@ -40,7 +40,7 @@ for (Z,N,A) in isotopes:
         channel = f.strip('gam.tot')
         Zd = int(channel[:3])
         Nd = int(channel[3:6]) - Zd
-        check = (Z == thin[:,0]) * (N == thin[:,1]) * (Zd == thin[:,2]) * (Nd == thin[:,3])
+        check = (Z == thin[:,0]) * (N == thin[:,1]) * (Zd == thin[:,2]) * (Nd == thin[:,3]) # check if PD channel remains after xs file thinning
         if sum(check) == 0:
             continue
         Egamma = open(folder + f).readlines()[0].split()
@@ -65,7 +65,7 @@ for (Z,N,A) in isotopes:
         channel = f.strip('xs.tot')
         Zd = Z - (int(channel[1]) + int(channel[2]) + int(channel[3]) + 2*int(channel[4]) + 2*int(channel[5]))
         Nd = N - (int(channel[0]) + int(channel[2]) + int(channel[3]) + int(channel[4]) + 2*int(channel[5]))
-        check = (Z == thin[:,0]) * (N == thin[:,1]) * (Zd == thin[:,2]) * (Nd == thin[:,3])
+        check = (Z == thin[:,0]) * (N == thin[:,1]) * (Zd == thin[:,2]) * (Nd == thin[:,3]) # check if PD channel remains after xs file thinning
         if sum(check) == 0:
             continue
 
