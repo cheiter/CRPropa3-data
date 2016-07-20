@@ -31,15 +31,18 @@ d2sum = genfromtxt(ddir2+'xs_sum.txt',
     dtype=[('Z',int), ('N',int), ('xs','%if8'%n)])
 d2exc = genfromtxt(ddir2+'xs_thin.txt',
     dtype=[('Z',int), ('N',int), ('ch',int), ('xs','%if8'%n)])
-d2gamma = genfromtxt(ddir2+'xs_gamma_thin.txt',
+d2gamma = genfromtxt(ddir2+'xs_gamma_thin_renormalized_optimized.txt',
     dtype=[('Z',int), ('N',int), ('Zd',int), ('Nd',int), ('Egamma',double), ('xs','%if8'%n)])
 d2sum_daughter = genfromtxt(ddir2+'xs_sum_daughter.txt',
     dtype=[('Z',int), ('N',int), ('Zd',int), ('Nd',int), ('xs','%if8'%n)])
+d2elastic = genfromtxt(ddir2+'xs_elastic.txt',
+    dtype=[('Z',int), ('N',int), ('xs','%if8'%n)])
 eps2 = iR.romb_pad_logspaced(x, 513)  # padding
 xs2sum = array([iR.romb_pad_zero(x, 513) for x in d2sum['xs']])*1e-31
 xs2exc = array([iR.romb_pad_zero(x, 513) for x in d2exc['xs']])*1e-31
 xs2gamma = array([iR.romb_pad_zero(x, 513) for x in d2gamma['xs']])*1e-31
 xs2sum_daughter = array([iR.romb_pad_zero(x, 513) for x in d2sum_daughter['xs']])*1e-31
+xs2elastic = array([iR.romb_pad_zero(x, 513) for x in d2elastic['xs']])*1e-31
 
 
 fields = [
@@ -55,60 +58,80 @@ fields = [
 for field in fields:
     print field.name
 
-    # Calculate total interaction rate
-    R1 = array([iR.invMFP_fast(eps1, x, gamma, field) for x in xs1sum])
-    R2 = array([iR.invMFP_fast(eps2, x, gamma, field) for x in xs2sum])
-    R3 = array([iR.invMFP_fast(eps2, x, gamma, field) for x in xs2sum_daughter])
-
-    # save
-    fname = 'data/pd_%s.txt' % field.name
+#    # Calculate total interaction rate
+#    R1 = array([iR.invMFP_fast(eps1, x, gamma, field) for x in xs1sum])
+#    R2 = array([iR.invMFP_fast(eps2, x, gamma, field) for x in xs2sum])
+#    R3 = array([iR.invMFP_fast(eps2, x, gamma, field) for x in xs2sum_daughter])
+    R4 = array([iR.invMFP_fast(eps2, x, gamma, field) for x in xs2elastic])
+#
+#    # save
+#    fname = 'data/pd_%s.txt' % field.name
+#    output = r_[
+#        c_[d1sum['Z'], d1sum['N'], R1],
+#        c_[d2sum['Z'], d2sum['N'], R2]]
+#    fmt = '%i\t%i' + '\t%g'*201
+#    hdr = 'Photo-disintegration with the %s\nZ, N, 1/lambda [1/Mpc] for log10(gamma) = 6-14 in 201 steps' % field.info
+#    savetxt(fname, output, fmt=fmt, header=hdr)
+#
+    # save elastic
+    fname = 'data/pd_elastic_%s.txt' % field.name
     output = r_[
-        c_[d1sum['Z'], d1sum['N'], R1],
-        c_[d2sum['Z'], d2sum['N'], R2]]
+        c_[d2elastic['Z'], d2elastic['N'], R4]]
     fmt = '%i\t%i' + '\t%g'*201
     hdr = 'Photo-disintegration with the %s\nZ, N, 1/lambda [1/Mpc] for log10(gamma) = 6-14 in 201 steps' % field.info
     savetxt(fname, output, fmt=fmt, header=hdr)
 
-
-    # Calculate branching ratios
-    # for A < 12
-    B1 = array([iR.invMFP_fast(eps1, x, gamma, field) for x in xs1exc])
-    for (Z, N, A) in isotopes1:
-        s = (d1exc['Z'] == Z) * (d1exc['N'] == N)
-        B1[s] /= sum(B1[s], axis=0)
-    B1[isnan(B1)] = 0  # set to 0 when total cross section is 0
-
-    # for A > 12
-    B2 = array([iR.invMFP_fast(eps2, x, gamma, field) for x in xs2exc])
-    for (Z, N, A) in isotopes2:
-        s = (d2exc['Z'] == Z) * (d2exc['N'] == N)
-        B2[s] /= sum(B2[s], axis=0)
-    B2[isnan(B2)] = 0  # set to 0 when total cross section is 0
-
-    # save
-    fname = 'data/pd_branching_%s.txt'%field.name
-    output = r_[
-        c_[d1exc['Z'], d1exc['N'], d1exc['ch'], B1],
-        c_[d2exc['Z'], d2exc['N'], d2exc['ch'], B2]]
-    fmt = '%i\t%i\t%06d' + '\t%g'*201
-    hdr = 'Photo-disintegration with the %s\nZ, N, channel, branching ratio for log10(gamma) = 6-14 in 201 steps' % field.info
-    savetxt(fname, output, fmt=fmt, header=hdr)
-
-    # Calculate photon emission probabilities
-    # for A > 12
-    print "calc gamma stuff"
-    B3 = array([iR.invMFP_fast(eps2, x, gamma, field) for x in xs2gamma])
-    print "fertig"
-    PDchannel = transpose(array([d2sum_daughter['Z'],d2sum_daughter['N'],d2sum_daughter['Zd'],d2sum_daughter['Nd']]))
-    for i,(Z, N, Zd, Nd) in enumerate(PDchannel):
-        s = (d2gamma['Z'] == Z) * (d2gamma['N'] == N) * (d2gamma['Zd'] == Zd) * (d2gamma['Nd'] == Nd)
-        B3[s] /= R3[i]
-    B3[isnan(B3)] = 0 # set to 0 when total cross section is 0
-
-    # save
-    fname = 'data/pd_gamma_thin_%s.txt'%field.name
-    output = r_[
-        c_[d2gamma['Z'], d2gamma['N'], d2gamma['Zd'], d2gamma['Nd'], d2gamma['Egamma']*1e6, B3]]
-    fmt = '%i\t%i\t%i\t%i\t%.4f' + '\t%g'*201
-    hdr = 'Photo-disintegration with the %s\nZ, N, Z_daughter, N_daughter, Egamma [eV], emission probability for log10(gamma) = 6-14 in 201 steps' % field.info
-    savetxt(fname, output, fmt=fmt, header=hdr)
+    # calc cumulative rate for elastic scattering
+    fname = 'data/pd_elastic_CDF_%s.txt' % field.name
+    hdr = '# Photo-disintegration with the %s\n# Z, N, log10(gamma), (1/lambda)_cumulative_normalized  for eps = log10(2 keV) - log10(263 MeV) in 513 steps\n' % field.info
+    f = open(fname,'w')
+    f.write(hdr)
+    fmt = '%i\t%i\t%g' + '\t%g'*len(eps2) + '\n'
+    for i,x in enumerate(xs2elastic):
+        C1 = iR.cumulative_rate_gamma_eps(eps2,x,gamma,field)
+        for j in range(0,len(gamma)):
+            f.write(fmt % ( (d2elastic['Z'][i],d2elastic['N'][i],log10(gamma[j])) + tuple(C1[j,:]/max(C1[j,:]))))
+    f.close()
+#
+#    # Calculate branching ratios
+#    # for A < 12
+#    B1 = array([iR.invMFP_fast(eps1, x, gamma, field) for x in xs1exc])
+#    for (Z, N, A) in isotopes1:
+#        s = (d1exc['Z'] == Z) * (d1exc['N'] == N)
+#        B1[s] /= sum(B1[s], axis=0)
+#    B1[isnan(B1)] = 0  # set to 0 when total cross section is 0
+#
+#    # for A > 12
+#    B2 = array([iR.invMFP_fast(eps2, x, gamma, field) for x in xs2exc])
+#    for (Z, N, A) in isotopes2:
+#        s = (d2exc['Z'] == Z) * (d2exc['N'] == N)
+#        B2[s] /= sum(B2[s], axis=0)
+#    B2[isnan(B2)] = 0  # set to 0 when total cross section is 0
+#
+#    # save
+#    fname = 'data/pd_branching_%s.txt'%field.name
+#    output = r_[
+#        c_[d1exc['Z'], d1exc['N'], d1exc['ch'], B1],
+#        c_[d2exc['Z'], d2exc['N'], d2exc['ch'], B2]]
+#    fmt = '%i\t%i\t%06d' + '\t%g'*201
+#    hdr = 'Photo-disintegration with the %s\nZ, N, channel, branching ratio for log10(gamma) = 6-14 in 201 steps' % field.info
+#    savetxt(fname, output, fmt=fmt, header=hdr)
+#
+#    # Calculate photon emission probabilities
+#    # for A > 12
+#    print "calc gamma stuff"
+#    B3 = array([iR.invMFP_fast(eps2, x, gamma, field) for x in xs2gamma])
+#    print "fertig"
+#    PDchannel = transpose(array([d2sum_daughter['Z'],d2sum_daughter['N'],d2sum_daughter['Zd'],d2sum_daughter['Nd']]))
+#    for i,(Z, N, Zd, Nd) in enumerate(PDchannel):
+#        s = (d2gamma['Z'] == Z) * (d2gamma['N'] == N) * (d2gamma['Zd'] == Zd) * (d2gamma['Nd'] == Nd)
+#        B3[s] /= R3[i]
+#    B3[isnan(B3)] = 0 # set to 0 when total cross section is 0
+#
+#    # save
+#    fname = 'data/pd_gamma_opt_%s.txt'%field.name
+#    output = r_[
+#        c_[d2gamma['Z'], d2gamma['N'], d2gamma['Zd'], d2gamma['Nd'], d2gamma['Egamma']*1e6, B3]]
+#    fmt = '%i\t%i\t%i\t%i\t%.4f' + '\t%g'*201
+#    hdr = 'Photo-disintegration with the %s\nZ, N, Z_daughter, N_daughter, Egamma [eV], emission probability for log10(gamma) = 6-14 in 201 steps' % field.info
+#    savetxt(fname, output, fmt=fmt, header=hdr)

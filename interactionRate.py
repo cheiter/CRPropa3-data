@@ -66,6 +66,30 @@ def invMFP_fast(eps, xs, gamma, field):
     return integrate.romb(n * F, dx=dx) * Mpc / gamma
 
 
+def cumulative_rate_gamma_eps(eps, xs, gamma,field):
+    """
+    Calculate cumulative interaction rate against an isotropic photon background
+    for different gamma factors of the initial particle.
+
+    The tabulated cross sections need to be of length n = 2^i + 1
+    and the tabulation points log-linearly spaced
+    eps   : photon energies [J] in nucleus rest frame
+    xs    : cross sections [m^2]
+    gamma : (array of) nucleus Lorentz factors
+    field : photon background, see photonField.py
+
+    Returns : cumulative interaction rate [1/Mpc] matrix.
+    """
+    a = np.outer(np.zeros(len(gamma)),np.zeros(len(eps)))
+    F = integrate.cumtrapz(x=eps, y=eps*xs, initial=0)
+    for i,lf in enumerate(gamma):
+        n = field.getDensity(1./(2*lf) * eps)
+        b = integrate.cumtrapz(x=eps, y=1./lf / eps**2 *n*F *Mpc, initial = 0)
+        for j in range(0,len(eps)):
+            a[i,j] = b[j]
+    return a
+
+
 def rate(s_kin, xs, E,field):
     """
     Calculate interaction rate against an isotropic photon background
